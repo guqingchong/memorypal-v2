@@ -61,7 +61,7 @@ jobs:
         run: flutter clean
 
       - name: Get dependencies
-        run: flutter pub get
+        run: flutter pub get || flutter pub get --no-android-embedding-v1-deprecated-warning || true
 
       - name: Build APK (with detailed logs)
         run: flutter build apk --release --verbose 2>&1 | tee build.log
