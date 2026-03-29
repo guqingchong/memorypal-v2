@@ -49,23 +49,35 @@ jobs:
       - name: Install NDK
         run: sdkmanager "ndk;25.1.8937393" "cmake;3.22.1"
 
-      - name: Set Flutter environment
+      - name: Verify project structure
         run: |
-          echo "FLUTTER_ROOT=${{ env.FLUTTER_ROOT }}" >> $GITHUB_ENV
-          echo "FLUTTER_HOME=${{ env.FLUTTER_ROOT }}" >> $GITHUB_ENV
-          flutter config --no-analytics
-        shell: bash
+          echo "=== Verifying project structure ==="
+          ls -la
+          echo "=== Android directory ==="
+          ls -la android/
+          echo "=== AndroidManifest.xml ==="
+          cat android/app/src/main/AndroidManifest.xml | head -20
+          echo "=== settings.gradle.kts ==="
+          cat android/settings.gradle.kts
 
       - name: Clean project
-        run: flutter clean
+        run: |
+          flutter clean
+          rm -rf android/.gradle
+          rm -rf android/app/build
 
       - name: Get dependencies
-        run: |
-          flutter pub get || echo "Warning: pub get had issues but continuing..."
+        run: flutter pub get
 
       - name: Build APK
         run: |
-          if [ "${{ github.event.inputs.build_type }}" = "debug" ]; then
+          BUILD_TYPE="${{ github.event.inputs.build_type }}"
+          # 如果 inputs 为空（push 事件），默认为 release
+          if [ -z "$BUILD_TYPE" ]; then
+            BUILD_TYPE="release"
+          fi
+          echo "Building $BUILD_TYPE..."
+          if [ "$BUILD_TYPE" = "debug" ]; then
             flutter build apk --debug --verbose
           else
             flutter build apk --release --verbose
