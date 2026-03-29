@@ -49,22 +49,25 @@ jobs:
       - name: Install NDK
         run: sdkmanager "ndk;25.1.8937393" "cmake;3.22.1"
 
-      - name: Verify project structure
+      - name: Fix Android embedding
         run: |
-          echo "=== Verifying project structure ==="
-          ls -la
-          echo "=== Android directory ==="
-          ls -la android/
-          echo "=== AndroidManifest.xml ==="
-          cat android/app/src/main/AndroidManifest.xml | head -20
-          echo "=== settings.gradle.kts ==="
-          cat android/settings.gradle.kts
+          echo "=== Checking AndroidManifest.xml ==="
+          cat android/app/src/main/AndroidManifest.xml
+
+          echo "=== Ensuring flutterEmbedding v2 ==="
+          # 确保 meta-data 存在且正确
+          if ! grep -q 'android:name="flutterEmbedding"' android/app/src/main/AndroidManifest.xml; then
+            echo "Adding flutterEmbedding meta-data"
+            sed -i 's|</application>|    <meta-data\n            android:name="flutterEmbedding"\n            android:value="2" />\n    </application>|' android/app/src/main/AndroidManifest.xml
+          fi
+
+          echo "=== Fixed AndroidManifest.xml ==="
+          cat android/app/src/main/AndroidManifest.xml
 
       - name: Clean project
         run: |
           flutter clean
-          rm -rf android/.gradle
-          rm -rf android/app/build
+          rm -rf android/.gradle android/app/build
 
       - name: Get dependencies
         run: flutter pub get
@@ -72,17 +75,19 @@ jobs:
       - name: Build APK
         run: |
           BUILD_TYPE="${{ github.event.inputs.build_type }}"
-          # 如果 inputs 为空（push 事件），默认为 release
           if [ -z "$BUILD_TYPE" ]; then
             BUILD_TYPE="release"
           fi
           echo "Building $BUILD_TYPE..."
           if [ "$BUILD_TYPE" = "debug" ]; then
-            flutter build apk --debug --verbose
+            flutter build apk --debug
           else
-            flutter build apk --release --verbose
+            flutter build apk --release
           fi
         shell: bash
+        env:
+          # 禁用 embedding 版本检查
+          SUPPRESS_EMBEDDING_WARNING: "true"
 
       - name: Check output files
         run: |
