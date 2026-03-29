@@ -1,0 +1,86 @@
+name: Debug Build APK
+
+on:
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: '3.19.6'
+  JAVA_VERSION: '17'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses || true
+
+      - name: Install NDK and CMake
+        run: |
+          sdkmanager "ndk;25.1.8937393" "cmake;3.22.1" || true
+          sdkmanager "build-tools;34.0.0" "platforms;android-34" || true
+
+      - name: Debug - Show Environment
+        run: |
+          echo "=== Flutter Version ==="
+          flutter --version
+          echo "=== Flutter Doctor ==="
+          flutter doctor -v || true
+          echo "=== Java Version ==="
+          java -version
+          echo "=== Environment Variables ==="
+          env | grep -E "(FLUTTER|ANDROID|JAVA)" || true
+          echo "=== Project Structure ==="
+          ls -la
+          echo "=== Android Structure ==="
+          ls -la android/
+          echo "=== settings.gradle.kts ==="
+          cat android/settings.gradle.kts
+          echo "=== local.properties exists? ==="
+          cat android/local.properties 2>/dev/null || echo "No local.properties (expected in CI)"
+
+      - name: Clean project
+        run: flutter clean
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build APK (with detailed logs)
+        run: flutter build apk --release --verbose 2>&1 | tee build.log
+        env:
+          FLUTTER_ROOT: ${{ env.FLUTTER_ROOT }}
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            build.log
+            android/build.gradle.kts
+            android/app/build.gradle.kts
+
+      - name: Upload APK on success
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-success
+          path: build/app/outputs/flutter-apk/*.apk
