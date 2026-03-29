@@ -13,8 +13,8 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import com.memorypal.memorypal.MainActivity
-import com.memorypal.memorypal.R
+import com.memorypal.memorypal_v2.MainActivity
+import com.memorypal.memorypal_v2.R
 import java.io.File
 import java.io.IOException
 import java.text.SimpleDateFormat
